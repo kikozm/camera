@@ -5,82 +5,96 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>הנה סיפור הטיול שלך</title>
     <style>
-        body {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            height: 100vh;
+        body, html {
             margin: 0;
-            background-color: #f0f0f0;
-        }
-        #camera-view, #captured-image {
+            padding: 0;
+            height: 100%;
             width: 100%;
-            max-width: 100%;
-            height: auto;
+            overflow: hidden;
+            background-color: #000;
+        }
+        #camera-view {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            transform: rotate(0deg);
+            /* ייתכן שתצטרך להתאים את הסיבוב לפי הצורך */
         }
         #logo {
             position: absolute;
-            bottom: 10px;
-            left: 10px;
-            width: 150px;
+            bottom: 20px;
+            left: 20px;
+            width: 100px;
             z-index: 10;
         }
-        .container {
-            position: relative;
-            width: 100%;
-            max-width: 600px;
-        }
-
-        /* עיצוב הכפתור */
         #capture-button {
-            background-color: #FFA500; /* צבע כתום */
-            color: #FFFFFF; /* טקסט לבן */
-            border: 2px solid #1E90FF; /* מסגרת כחולה */
-            padding: 15px 30px;
-            font-size: 18px;
-            border-radius: 10px;
+            position: absolute;
+            bottom: 20px;
+            right: 20px;
+            width: 70px;
+            height: 70px;
+            background-color: rgba(255, 255, 255, 0.7);
+            border: 5px solid #fff;
+            border-radius: 50%;
             cursor: pointer;
-            transition: background-color 0.3s ease;
-            margin-top: 20px;
-            user-select: none;
+            z-index: 10;
+            transition: background-color 0.3s ease, border-color 0.3s ease;
         }
 
-        /* שינוי צבע כשהעכבר עובר על הכפתור */
-        #capture-button:hover {
-            background-color: #1E90FF; /* צבע כחול */
-            color: #FFFFFF; /* טקסט לבן */
-            border-color: #FFA500; /* מסגרת כתומה */
+        #capture-button:active {
+            background-color: rgba(255, 255, 255, 1);
+            border-color: #FFA500;
         }
 
-        /* סגנון למרכז הכפתורים */
-        .button-container {
-            text-align: center;
-            margin-top: 10px;
+        /* עיצוב הלוגו במצב חבוי */
+        #logo.hidden {
+            display: none;
+        }
+
+        /* סגנון להודעת שגיאה */
+        #error-message {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            color: white;
+            background-color: rgba(0,0,0,0.7);
+            padding: 20px;
+            border-radius: 10px;
+            display: none;
+            z-index: 20;
         }
     </style>
 </head>
 <body>
 
-    <h1>הנה סיפור הטיול שלך</h1>
-
-    <div class="container">
-        <video id="camera-view" autoplay playsinline></video>
-        <img id="logo" src="logo.png" alt="לוגו">
-    </div>
-    
-    <button id="capture-button">צלם תמונה</button>
+    <video id="camera-view" autoplay playsinline></video>
+    <img id="logo" src="logo.png" alt="לוגו">
+    <div id="capture-button"></div>
     <canvas id="captured-image" style="display:none;"></canvas>
+    <div id="error-message"></div>
 
     <script>
         const cameraView = document.getElementById('camera-view');
         const captureButton = document.getElementById('capture-button');
         const capturedImage = document.getElementById('captured-image');
         const logo = document.getElementById('logo');
+        const errorMessage = document.getElementById('error-message');
 
         let currentStream = null;
         let useFrontCamera = true; // משתנה למעקב אחרי המצלמה הנוכחית
         let lastTap = 0;
+        let videoDevices = [];
+        let currentDeviceIndex = 0;
+
+        // פונקציה להצגת הודעת שגיאה
+        function showError(message) {
+            errorMessage.textContent = message;
+            errorMessage.style.display = 'block';
+        }
 
         // פונקציה לאתחול המצלמה
         async function initCamera() {
@@ -91,21 +105,40 @@
 
             const constraints = {
                 video: {
-                    facingMode: useFrontCamera ? 'user' : 'environment'
+                    deviceId: videoDevices[currentDeviceIndex] ? { exact: videoDevices[currentDeviceIndex].deviceId } : undefined
                 }
             };
 
             try {
                 currentStream = await navigator.mediaDevices.getUserMedia(constraints);
                 cameraView.srcObject = currentStream;
+                cameraView.style.display = 'block';
+                errorMessage.style.display = 'none';
             } catch (err) {
                 console.error("שגיאה בגישה למצלמה: ", err);
-                alert("לא הצלחנו לגשת למצלמה. אנא בדוק הרשאות.");
+                showError("לא הצלחנו לגשת למצלמה. אנא בדוק הרשאות.");
             }
         }
 
-        // אתחול המצלמה בפעם הראשונה
-        initCamera();
+        // פונקציה לקבלת רשימת המצלמות
+        async function getVideoDevices() {
+            const devices = await navigator.mediaDevices.enumerateDevices();
+            videoDevices = devices.filter(device => device.kind === 'videoinput');
+            if (videoDevices.length === 0) {
+                showError("לא נמצאו מצלמות במכשיר.");
+            }
+        }
+
+        // אתחול המצלמה עם רשימת המכשירים
+        async function setupCamera() {
+            await getVideoDevices();
+            if (videoDevices.length > 0) {
+                initCamera();
+            }
+        }
+
+        // קריאה לאתחול המצלמה בפעם הראשונה
+        setupCamera();
 
         // מאזין לאירוע לחיצה על כפתור הצילום
         captureButton.addEventListener('click', () => {
@@ -114,8 +147,7 @@
 
             if (tapLength < 300 && tapLength > 0) {
                 // לחיצה כפולה - החלפת מצלמה
-                useFrontCamera = !useFrontCamera;
-                initCamera();
+                switchCamera();
             } else {
                 // לחיצה אחת - צילום תמונה
                 takePicture();
@@ -123,6 +155,16 @@
 
             lastTap = currentTime;
         });
+
+        // פונקציה להחלפת מצלמה
+        function switchCamera() {
+            if (videoDevices.length > 1) {
+                currentDeviceIndex = (currentDeviceIndex + 1) % videoDevices.length;
+                initCamera();
+            } else {
+                alert("אין מצלמה נוספת במכשיר.");
+            }
+        }
 
         // פונקציה לצילום תמונה
         function takePicture() {
@@ -138,9 +180,11 @@
             context.drawImage(cameraView, 0, 0, width, height);
 
             // הוספת הלוגו על התמונה
-            const logoWidth = logo.width;
-            const logoHeight = logo.height;
-            context.drawImage(logo, 10, height - logoHeight - 10, logoWidth, logoHeight);
+            if (logo.src) { // בדיקה שהלוגו נטען
+                const logoWidth = 100; // גודל מותאם ללוגו
+                const logoHeight = 100; // ניתן לשנות לפי הצורך
+                context.drawImage(logo, 10, height - logoHeight - 10, logoWidth, logoHeight);
+            }
 
             // שמירת התמונה למכשיר
             capturedImage.toBlob(blob => {
@@ -153,6 +197,12 @@
                 document.body.removeChild(a);
             }, 'image/png');
         }
+
+        // טיפול בשינויים בכיוון המסך
+        window.addEventListener('orientationchange', () => {
+            // ניתן להוסיף התאמות נוספות במקרה הצורך
+            // לדוגמה, סיבוב הלוגו בהתאם לכיוון המסך
+        });
     </script>
 
 </body>
