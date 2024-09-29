@@ -5,6 +5,15 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>הנה סיפור הטיול שלך</title>
     <style>
+        body {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            margin: 0;
+            background-color: #f0f0f0;
+        }
         #camera-view, #captured-image {
             width: 100%;
             max-width: 100%;
@@ -19,24 +28,26 @@
         }
         .container {
             position: relative;
-            display: inline-block;
+            width: 100%;
+            max-width: 600px;
         }
 
-        /* עיצוב הכפתורים */
-        .button {
+        /* עיצוב הכפתור */
+        #capture-button {
             background-color: #FFA500; /* צבע כתום */
             color: #FFFFFF; /* טקסט לבן */
             border: 2px solid #1E90FF; /* מסגרת כחולה */
-            padding: 10px 20px;
-            font-size: 16px;
-            border-radius: 5px;
+            padding: 15px 30px;
+            font-size: 18px;
+            border-radius: 10px;
             cursor: pointer;
             transition: background-color 0.3s ease;
-            margin: 5px;
+            margin-top: 20px;
+            user-select: none;
         }
 
         /* שינוי צבע כשהעכבר עובר על הכפתור */
-        .button:hover {
+        #capture-button:hover {
             background-color: #1E90FF; /* צבע כחול */
             color: #FFFFFF; /* טקסט לבן */
             border-color: #FFA500; /* מסגרת כתומה */
@@ -58,22 +69,18 @@
         <img id="logo" src="logo.png" alt="לוגו">
     </div>
     
-    <div class="button-container">
-        <button id="capture-button" class="button">צלם תמונה</button>
-        <button id="switch-button" class="button">החלף מצלמה</button>
-    </div>
-    
+    <button id="capture-button">צלם תמונה</button>
     <canvas id="captured-image" style="display:none;"></canvas>
 
     <script>
         const cameraView = document.getElementById('camera-view');
         const captureButton = document.getElementById('capture-button');
-        const switchButton = document.getElementById('switch-button');
         const capturedImage = document.getElementById('captured-image');
         const logo = document.getElementById('logo');
 
         let currentStream = null;
         let useFrontCamera = true; // משתנה למעקב אחרי המצלמה הנוכחית
+        let lastTap = 0;
 
         // פונקציה לאתחול המצלמה
         async function initCamera() {
@@ -102,6 +109,23 @@
 
         // מאזין לאירוע לחיצה על כפתור הצילום
         captureButton.addEventListener('click', () => {
+            const currentTime = new Date().getTime();
+            const tapLength = currentTime - lastTap;
+
+            if (tapLength < 300 && tapLength > 0) {
+                // לחיצה כפולה - החלפת מצלמה
+                useFrontCamera = !useFrontCamera;
+                initCamera();
+            } else {
+                // לחיצה אחת - צילום תמונה
+                takePicture();
+            }
+
+            lastTap = currentTime;
+        });
+
+        // פונקציה לצילום תמונה
+        function takePicture() {
             const context = capturedImage.getContext('2d');
             const width = cameraView.videoWidth;
             const height = cameraView.videoHeight;
@@ -128,13 +152,7 @@
                 a.click();
                 document.body.removeChild(a);
             }, 'image/png');
-        });
-
-        // מאזין לאירוע לחיצה על כפתור ההחלפה
-        switchButton.addEventListener('click', () => {
-            useFrontCamera = !useFrontCamera; // החלפת ערך המשתנה
-            initCamera(); // אתחול המצלמה עם ההגדרות החדשות
-        });
+        }
     </script>
 
 </body>
