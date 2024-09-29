@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title> "הנה סיפור הטיול שלך" </title>
+    <title>הנה סיפור הטיול שלך</title>
     <style>
         #camera-view, #captured-image {
             width: 100%;
@@ -22,8 +22,8 @@
             display: inline-block;
         }
 
-        /* עיצוב הכפתור */
-        #capture-button {
+        /* עיצוב הכפתורים */
+        .button {
             background-color: #FFA500; /* צבע כתום */
             color: #FFFFFF; /* טקסט לבן */
             border: 2px solid #1E90FF; /* מסגרת כחולה */
@@ -32,13 +32,20 @@
             border-radius: 5px;
             cursor: pointer;
             transition: background-color 0.3s ease;
+            margin: 5px;
         }
 
         /* שינוי צבע כשהעכבר עובר על הכפתור */
-        #capture-button:hover {
+        .button:hover {
             background-color: #1E90FF; /* צבע כחול */
             color: #FFFFFF; /* טקסט לבן */
             border-color: #FFA500; /* מסגרת כתומה */
+        }
+
+        /* סגנון למרכז הכפתורים */
+        .button-container {
+            text-align: center;
+            margin-top: 10px;
         }
     </style>
 </head>
@@ -51,24 +58,49 @@
         <img id="logo" src="logo.png" alt="לוגו">
     </div>
     
-    <button id="capture-button">צלם תמונה</button>
+    <div class="button-container">
+        <button id="capture-button" class="button">צלם תמונה</button>
+        <button id="switch-button" class="button">החלף מצלמה</button>
+    </div>
+    
     <canvas id="captured-image" style="display:none;"></canvas>
 
     <script>
         const cameraView = document.getElementById('camera-view');
         const captureButton = document.getElementById('capture-button');
+        const switchButton = document.getElementById('switch-button');
         const capturedImage = document.getElementById('captured-image');
         const logo = document.getElementById('logo');
 
-        // גישה למצלמה של המכשיר
-        navigator.mediaDevices.getUserMedia({ video: true })
-            .then(stream => {
-                cameraView.srcObject = stream;
-            })
-            .catch(err => {
-                console.error("שגיאה בגישה למצלמה: ", err);
-            });
+        let currentStream = null;
+        let useFrontCamera = true; // משתנה למעקב אחרי המצלמה הנוכחית
 
+        // פונקציה לאתחול המצלמה
+        async function initCamera() {
+            if (currentStream) {
+                // עצירת כל הטרקים של הזרם הנוכחי לפני פתיחת זרם חדש
+                currentStream.getTracks().forEach(track => track.stop());
+            }
+
+            const constraints = {
+                video: {
+                    facingMode: useFrontCamera ? 'user' : 'environment'
+                }
+            };
+
+            try {
+                currentStream = await navigator.mediaDevices.getUserMedia(constraints);
+                cameraView.srcObject = currentStream;
+            } catch (err) {
+                console.error("שגיאה בגישה למצלמה: ", err);
+                alert("לא הצלחנו לגשת למצלמה. אנא בדוק הרשאות.");
+            }
+        }
+
+        // אתחול המצלמה בפעם הראשונה
+        initCamera();
+
+        // מאזין לאירוע לחיצה על כפתור הצילום
         captureButton.addEventListener('click', () => {
             const context = capturedImage.getContext('2d');
             const width = cameraView.videoWidth;
@@ -96,6 +128,12 @@
                 a.click();
                 document.body.removeChild(a);
             }, 'image/png');
+        });
+
+        // מאזין לאירוע לחיצה על כפתור ההחלפה
+        switchButton.addEventListener('click', () => {
+            useFrontCamera = !useFrontCamera; // החלפת ערך המשתנה
+            initCamera(); // אתחול המצלמה עם ההגדרות החדשות
         });
     </script>
 
